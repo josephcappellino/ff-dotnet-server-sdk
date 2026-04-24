@@ -8,8 +8,9 @@ using io.harness.cfsdk.HarnessOpenAPIService;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json.Linq;
 using Target = io.harness.cfsdk.client.dto.Target;
-using System.Collections.Generic;
 using Newtonsoft.Json;
+using System.Threading.Tasks;
+using System.Threading;
 
 [assembly: InternalsVisibleToAttribute("ff-server-sdk-test")]
 
@@ -23,11 +24,15 @@ namespace io.harness.cfsdk.client.api
     internal interface IEvaluator
     {
         bool BoolVariation(string key, Target target, bool defaultValue);
+        Task<bool> BoolVariationAsync(string key, Target target, bool defaultValue, CancellationToken cancellationToken = default);
         string StringVariation(string key, Target target, string defaultValue);
+        Task<string> StringVariationAsync(string key, Target target, string defaultValue, CancellationToken cancellationToken = default);
         double NumberVariation(string key, Target target, double defaultValue);
+        Task<double> NumberVariationAsync(string key, Target target, double defaultValue, CancellationToken cancellationToken = default);
         JToken JsonVariationToken(string key, Target target, JToken defaultValue);
+        Task<JToken> JsonVariationTokenAsync(string key, Target target, JToken defaultValue, CancellationToken cancellationToken = default);
         JObject JsonVariation(string key, Target target, JObject defaultValue);
-
+        Task<JObject> JsonVariationAsync(string key, Target target, JObject defaultValue, CancellationToken cancellationToken = default);
     }
 
     internal class Evaluator : IEvaluator
@@ -55,7 +60,17 @@ namespace io.harness.cfsdk.client.api
 
         public bool BoolVariation(string key, Target target, bool defaultValue)
         {
-            var variation = EvaluateVariation(key, target, FeatureConfigKind.Boolean);
+            return BoolVariationAsync(key, target, defaultValue, CancellationToken.None)
+                .GetAwaiter().GetResult();
+        }
+
+        public async Task<bool> BoolVariationAsync(
+            string key,
+            Target target,
+            bool defaultValue,
+            CancellationToken cancellationToken = default)
+        {
+            var variation = await EvaluateVariationAsync(key, target, FeatureConfigKind.Boolean, cancellationToken);
             bool res;
             if (variation != null && bool.TryParse(variation.Value, out res)) return res;
 
@@ -65,7 +80,17 @@ namespace io.harness.cfsdk.client.api
 
         public JToken JsonVariationToken(string key, Target target, JToken defaultValue)
         {
-            var variation = EvaluateVariation(key, target, FeatureConfigKind.Json);
+            return JsonVariationTokenAsync(key, target, defaultValue, CancellationToken.None)
+                .GetAwaiter().GetResult();
+        }
+
+        public async Task<JToken> JsonVariationTokenAsync(
+            string key,
+            Target target,
+            JToken defaultValue,
+            CancellationToken cancellationToken = default)
+        {
+            var variation = await EvaluateVariationAsync(key, target, FeatureConfigKind.Json, cancellationToken);
             if (variation == null)
             {
                 LogEvaluationFailureError(FeatureConfigKind.Json, key, target, defaultValue);
@@ -88,7 +113,17 @@ namespace io.harness.cfsdk.client.api
 
         public JObject JsonVariation(string key, Target target, JObject defaultValue)
         {
-            var variation = EvaluateVariation(key, target, FeatureConfigKind.Json);
+            return JsonVariationAsync(key, target, defaultValue, CancellationToken.None)
+                .GetAwaiter().GetResult();
+        }
+
+        public async Task<JObject> JsonVariationAsync(
+            string key,
+            Target target,
+            JObject defaultValue,
+            CancellationToken cancellationToken = default)
+        {
+            var variation = await EvaluateVariationAsync(key, target, FeatureConfigKind.Json);
             if (variation != null)
             {
                 try
@@ -116,7 +151,17 @@ namespace io.harness.cfsdk.client.api
 
         public double NumberVariation(string key, Target target, double defaultValue)
         {
-            var variation = EvaluateVariation(key, target, FeatureConfigKind.Int);
+            return NumberVariationAsync(key, target, defaultValue, CancellationToken.None)
+                .GetAwaiter().GetResult();
+        }
+
+        public async Task<double> NumberVariationAsync(
+            string key,
+            Target target,
+            double defaultValue,
+            CancellationToken cancellationToken = default)
+        {
+            var variation = await EvaluateVariationAsync(key, target, FeatureConfigKind.Int);
             double res;
             if (variation != null && double.TryParse(variation.Value, out res)) return res;
 
@@ -126,14 +171,28 @@ namespace io.harness.cfsdk.client.api
 
         public string StringVariation(string key, Target target, string defaultValue)
         {
-            var variation = EvaluateVariation(key, target, FeatureConfigKind.String);
+            return StringVariationAsync(key, target, defaultValue, CancellationToken.None)
+                .GetAwaiter().GetResult();
+        }
+
+        public async Task<string> StringVariationAsync(
+            string key,
+            Target target,
+            string defaultValue,
+            CancellationToken cancellationToken = default)
+        {
+            var variation = await EvaluateVariationAsync(key, target, FeatureConfigKind.String);
             if (variation != null) return variation.Value;
 
             LogEvaluationFailureError(FeatureConfigKind.String, key, target, defaultValue);
             return defaultValue;
         }
 
-        private Variation EvaluateVariation(string key, Target target, FeatureConfigKind kind)
+        private async Task<Variation> EvaluateVariationAsync(
+            string key,
+            Target target,
+            FeatureConfigKind kind,
+            CancellationToken cancellationToken = default)
         {
             var featureConfig = repository.GetFlag(key);
             if (featureConfig == null)
@@ -145,7 +204,9 @@ namespace io.harness.cfsdk.client.api
 
                 if (poller != null)
                 {
-                    var refreshResult = poller.RefreshFlags(TimeSpan.FromMilliseconds(config.CacheRecoveryTimeoutInMs));
+                    var refreshResult = await poller.RefreshFlagsAsync(
+                        TimeSpan.FromMilliseconds(config.CacheRecoveryTimeoutInMs),
+                        cancellationToken);
 
                     if (refreshResult != RefreshOutcome.Success)
                         return null;

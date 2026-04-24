@@ -273,7 +273,7 @@ namespace io.harness.cfsdk.client.api
         /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>The evaluated variation value or the default value if evaluation fails.</returns>
         private async Task<TValue> RetrieveValue<TValue>(
-            Func<TValue> variationFunc,
+            Func<Task<TValue>> variationFunc,
             FeatureConfigKind kind,
             string key,
             Target target,
@@ -284,7 +284,7 @@ namespace io.harness.cfsdk.client.api
 
             try
             {
-                return variationFunc();
+                return await variationFunc();
             }
             catch (InvalidCacheStateException ex)
             {
@@ -305,7 +305,7 @@ namespace io.harness.cfsdk.client.api
 
                 try
                 {
-                    return variationFunc();
+                    return await variationFunc();
                 }
                 catch (InvalidCacheStateException cex)
                 {
@@ -326,7 +326,7 @@ namespace io.harness.cfsdk.client.api
         public async Task<bool> BoolVariationAsync(string key, Target target, bool defaultValue, CancellationToken cancellationToken)
         {
             return await RetrieveValue(
-                () => evaluator.BoolVariation(key, target, defaultValue),
+                async () => await evaluator.BoolVariationAsync(key, target, defaultValue, cancellationToken),
                 FeatureConfigKind.Boolean,
                 key,
                 target,
@@ -343,7 +343,7 @@ namespace io.harness.cfsdk.client.api
         public async Task<string> StringVariationAsync(string key, Target target, string defaultValue, CancellationToken cancellationToken)
         {
             return await RetrieveValue(
-                () => evaluator.StringVariation(key, target, defaultValue),
+                async () => await evaluator.StringVariationAsync(key, target, defaultValue),
                 FeatureConfigKind.String,
                 key,
                 target,
@@ -360,7 +360,7 @@ namespace io.harness.cfsdk.client.api
         public async Task<double> NumberVariationAsync(string key, Target target, double defaultValue, CancellationToken cancellationToken)
         {
             return await RetrieveValue(
-                () => evaluator.NumberVariation(key, target, defaultValue),
+                async () => await evaluator.NumberVariationAsync(key, target, defaultValue),
                 FeatureConfigKind.Int,
                 key,
                 target,
@@ -377,7 +377,7 @@ namespace io.harness.cfsdk.client.api
         public async Task<JToken> JsonVariationTokenAsync(string key, Target target, JToken defaultValue, CancellationToken cancellationToken)
         {
             return await RetrieveValue(
-                () => evaluator.JsonVariationToken(key, target, defaultValue),
+                async () => await evaluator.JsonVariationTokenAsync(key, target, defaultValue),
                 FeatureConfigKind.Json,
                 key,
                 target,
@@ -394,7 +394,7 @@ namespace io.harness.cfsdk.client.api
         public async Task<JObject> JsonVariationAsync(string key, Target target, JObject defaultValue, CancellationToken cancellationToken)
         {
             return await RetrieveValue(
-                () => evaluator.JsonVariation(key, target, defaultValue),
+                async () => await evaluator.JsonVariationAsync(key, target, defaultValue),
                 FeatureConfigKind.Json,
                 key,
                 target,
