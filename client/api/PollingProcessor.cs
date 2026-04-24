@@ -15,7 +15,7 @@ namespace io.harness.cfsdk.client.api
         Error,
         TooSoon,
     }
-    
+
     internal interface IPollCallback
     {
         /// <summary>
@@ -40,9 +40,11 @@ namespace io.harness.cfsdk.client.api
         void Start();
 
         RefreshOutcome RefreshSegments(TimeSpan timeout);
+        Task<RefreshOutcome> RefreshSegmentsAsync(TimeSpan timeout, CancellationToken cancellationToken = default);
         RefreshOutcome RefreshFlags(TimeSpan timeout);
-    
+        Task<RefreshOutcome> RefreshFlagsAsync(TimeSpan timeout, CancellationToken cancellationToken = default);
         RefreshOutcome RefreshFlagsAndSegments(TimeSpan timeout);
+        Task<RefreshOutcome> RefreshFlagsAndSegmentsAsync(TimeSpan timeout, CancellationToken cancellationToken = default);
 
     }
 
@@ -61,9 +63,9 @@ namespace io.harness.cfsdk.client.api
         private readonly Config config;
         private Timer pollTimer;
         private bool isInitialized = false;
-        private readonly object cacheRefreshLock = new object();
+        private readonly SemaphoreSlim cacheRefreshLock = new SemaphoreSlim(1, 1);
         private DateTime lastFlagsRefreshTime = DateTime.MinValue;
-        private DateTime lastSegmentsRefreshTime = DateTime.MinValue;       
+        private DateTime lastSegmentsRefreshTime = DateTime.MinValue;
         private const int MaxCacheRefreshTime = 60;
 
         private readonly TimeSpan refreshCooldown = TimeSpan.FromSeconds(MaxCacheRefreshTime);
@@ -75,6 +77,32 @@ namespace io.harness.cfsdk.client.api
             this.connector = connector;
             this.config = config;
             this.logger = loggerFactory.CreateLogger<PollingProcessor>();
+        }
+
+        private static Task RunWithTimeout(Task task, TimeSpan timeout, CancellationToken cancellationToken = default)
+        {
+            var tasks = new List<Task>();
+            if (task != null)
+            {
+                tasks.Add(task);
+            }
+
+            return RunWithTimeout(tasks, timeout, cancellationToken);
+        }
+
+        private static Task RunWithTimeout(IEnumerable<Task> tasks, TimeSpan timeout, CancellationToken cancellationToken = default)
+        {
+            var timeoutTask = Task.Delay(timeout, cancellationToken);
+            var allTasks = Task.WhenAll(tasks);
+            return Task.WhenAny(allTasks, timeoutTask)
+                .ContinueWith(t =>
+                {
+                    if (t.Result == timeoutTask)
+                    {
+                        throw new TimeoutException();
+                    }
+                    return allTasks;
+                }, cancellationToken).Unwrap();
         }
 
         public void Start()
@@ -91,7 +119,12 @@ namespace io.harness.cfsdk.client.api
 
             try
             {
-                Task.WhenAll(new List<Task> { ProcessFlags(), ProcessSegments() }).Wait();
+                ProcessFlagsAndSegments(TimeSpan.FromSeconds(config.CacheRecoveryTimeoutInMs))
+                    .GetAwaiter().GetResult();
+            }
+            catch (TimeoutException ex)
+            {
+                logger.LogWarning(ex, "First poll did not complete within the specified timeout");
             }
             catch (Exception ex)
             {
@@ -119,8 +152,10 @@ namespace io.harness.cfsdk.client.api
                 var flags = await this.connector.GetFlags();
                 logger.LogDebug("Fetching flags finished");
                 repository.SetFlags(flags);
-                logger.LogDebug("Loaded {SegmentRuleCount} flags", flags.Count());
-
+                if (logger.IsEnabled(LogLevel.Debug))
+                {
+                    logger.LogDebug("Loaded {SegmentRuleCount} flags", flags.Count());
+                }
             }
             catch (Exception ex)
             {
@@ -128,6 +163,12 @@ namespace io.harness.cfsdk.client.api
                 throw;
             }
         }
+
+        private async Task ProcessFlags(TimeSpan timeout, CancellationToken cancellationToken = default)
+        {
+            await RunWithTimeout(ProcessFlags(), timeout, cancellationToken);
+        }
+
         private async Task ProcessSegments()
         {
             try
@@ -136,7 +177,10 @@ namespace io.harness.cfsdk.client.api
                 IEnumerable<Segment> segments = await connector.GetSegments();
                 logger.LogDebug("Fetching segments finished");
                 repository.SetSegments(segments);
-                logger.LogDebug("Loaded {SegmentRuleCount} groups", segments.Count());
+                if (logger.IsEnabled(LogLevel.Debug))
+                {
+                    logger.LogDebug("Loaded {SegmentRuleCount} groups", segments.Count());
+                }
             }
             catch (Exception ex)
             {
@@ -145,9 +189,31 @@ namespace io.harness.cfsdk.client.api
             }
         }
 
+        private async Task ProcessSegments(TimeSpan timeout, CancellationToken cancellationToken = default)
+        {
+            await RunWithTimeout(ProcessSegments(), timeout, cancellationToken);
+        }
+
+        private async Task ProcessFlagsAndSegments(TimeSpan timeout, CancellationToken cancellationToken = default)
+        {
+            // Await both tasks to complete within the timeout
+            await RunWithTimeout(
+                new List<Task> { ProcessFlags(), ProcessSegments() },
+                timeout,
+                cancellationToken);
+        }
+
         public RefreshOutcome RefreshFlagsAndSegments(TimeSpan timeout)
         {
-            lock (cacheRefreshLock)
+            return RefreshFlagsAndSegmentsAsync(timeout, CancellationToken.None)
+                .GetAwaiter().GetResult();
+        }
+
+        public async Task<RefreshOutcome> RefreshFlagsAndSegmentsAsync(TimeSpan timeout, CancellationToken cancellationToken = default)
+        {
+            await cacheRefreshLock.WaitAsync(cancellationToken);
+
+            try
             {
                 if (!CanRefreshCache(ref lastSegmentsRefreshTime))
                 {
@@ -155,33 +221,38 @@ namespace io.harness.cfsdk.client.api
                     return RefreshOutcome.TooSoon;
                 }
 
-                var processSegmentsTask = Task.Run(async () => await ProcessSegments());
-                var processFlagsTask = Task.Run(async () => await ProcessFlags());
+                await ProcessFlagsAndSegments(timeout, cancellationToken);
 
-                try
-                {
-                    // Await both tasks to complete within the timeout
-                    var refreshSuccessful = Task.WaitAll(new[] { processSegmentsTask, processFlagsTask }, timeout);
-                    if (refreshSuccessful)
-                    {
-                        UpdateLastRefreshTime(ref lastSegmentsRefreshTime);
-                        return RefreshOutcome.Success;
-                    }
-
-                    logger.LogWarning("Refreshing flags and groups did not complete within the specified timeout");
-                    return RefreshOutcome.Error;
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex, "Exception occurred while refreshing flags and groups");
-                    return RefreshOutcome.Error;
-                }
+                UpdateLastRefreshTime(ref lastSegmentsRefreshTime);
+                return RefreshOutcome.Success;
+            }
+            catch (TimeoutException ex)
+            {
+                logger.LogWarning(ex, "Refreshing flags and groups did not complete within the specified timeout");
+                return RefreshOutcome.Error;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Exception occurred while refreshing flags and groups");
+                return RefreshOutcome.Error;
+            }
+            finally
+            {
+                cacheRefreshLock.Release();
             }
         }
 
         public RefreshOutcome RefreshSegments(TimeSpan timeout)
         {
-            lock (cacheRefreshLock)
+            return RefreshSegmentsAsync(timeout, CancellationToken.None)
+                .GetAwaiter().GetResult();
+        }
+
+        public async Task<RefreshOutcome> RefreshSegmentsAsync(TimeSpan timeout, CancellationToken cancellationToken = default)
+        {
+            await cacheRefreshLock.WaitAsync(cancellationToken);
+
+            try
             {
                 if (!CanRefreshCache(ref lastSegmentsRefreshTime))
                 {
@@ -189,74 +260,81 @@ namespace io.harness.cfsdk.client.api
                     return RefreshOutcome.TooSoon;
                 }
 
-                try
-                {
-                    var task = Task.Run(async () => await ProcessSegments());
-                    var refreshSuccessful = task.Wait(timeout);
-                    if (refreshSuccessful)
-                    {
-                        UpdateLastRefreshTime(ref lastSegmentsRefreshTime);
-                        return RefreshOutcome.Success;
-                    }
-
-                    logger.LogWarning("Refresh groups did not complete within the specified timeout");
-                    return RefreshOutcome.Error;
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex, "Exception occurred while trying to refresh groups");
-                    return RefreshOutcome.Error;
-                }
+                await ProcessSegments(timeout, cancellationToken);
+                UpdateLastRefreshTime(ref lastSegmentsRefreshTime);
+                return RefreshOutcome.Success;
+            }
+            catch (TimeoutException ex)
+            {
+                logger.LogWarning(ex, "Refresh groups did not complete within the specified timeout");
+                return RefreshOutcome.Error;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Exception occurred while trying to refresh groups");
+                return RefreshOutcome.Error;
+            }
+            finally
+            {
+                cacheRefreshLock.Release();
             }
         }
 
         public RefreshOutcome RefreshFlags(TimeSpan timeout)
         {
-            lock (cacheRefreshLock)
+            return RefreshFlagsAsync(timeout, CancellationToken.None)
+                .GetAwaiter().GetResult();
+        }
+
+        public async Task<RefreshOutcome> RefreshFlagsAsync(TimeSpan timeout, CancellationToken cancellationToken = default)
+        {
+            await cacheRefreshLock.WaitAsync(cancellationToken);
+
+            try
             {
                 if (!CanRefreshCache(ref lastFlagsRefreshTime))
                 {
                     logger.LogWarning("Attempt to refresh flags too soon after the last refresh");
                     return RefreshOutcome.TooSoon;
                 }
-                try
-                {
-                    var task = Task.Run(async () => await ProcessFlags());
-                    var refreshSuccessful = task.Wait(timeout);
-                    if (refreshSuccessful)
-                    {
-                        UpdateLastRefreshTime(ref lastFlagsRefreshTime);
-                        return RefreshOutcome.Success;
-                    }
 
-                    logger.LogWarning("RefreshFlags did not complete within the specified timeout");
-                    return RefreshOutcome.Error;
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex, "Exception occurred while trying to refresh flags");
-                    return RefreshOutcome.Error;
-                }
+                await ProcessFlags(timeout, cancellationToken);
+                UpdateLastRefreshTime(ref lastFlagsRefreshTime);
+                return RefreshOutcome.Success;
+            }
+            catch (TimeoutException ex)
+            {
+                logger.LogWarning(ex, "RefreshFlags did not complete within the specified timeout");
+                return RefreshOutcome.Error;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Exception occurred while trying to refresh flags");
+                return RefreshOutcome.Error;
+            }
+            finally
+            {
+                cacheRefreshLock.Release();
             }
         }
 
-   private bool CanRefreshCache(ref DateTime lastRefreshTime)
-    {
-        return (DateTime.UtcNow - lastRefreshTime) >= refreshCooldown;
-    }
+        private bool CanRefreshCache(ref DateTime lastRefreshTime)
+        {
+            return (DateTime.UtcNow - lastRefreshTime) >= refreshCooldown;
+        }
 
-    private void UpdateLastRefreshTime(ref DateTime lastRefreshTime)
-    {
-        lastRefreshTime = DateTime.UtcNow;
-    }
+        private static void UpdateLastRefreshTime(ref DateTime lastRefreshTime)
+        {
+            lastRefreshTime = DateTime.UtcNow;
+        }
 
-        
+
         private async void OnTimedEventAsync(object source)
         {
             try
             {
                 logger.LogDebug("Running polling iteration");
-                await Task.WhenAll(new List<Task> { ProcessFlags(), ProcessSegments() });
+                await ProcessFlagsAndSegments(TimeSpan.FromSeconds(config.CacheRecoveryTimeoutInMs));
                 callback.OnPollCompleted();
                 if (isInitialized) return;
                 isInitialized = true;
