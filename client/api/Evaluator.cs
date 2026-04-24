@@ -25,7 +25,7 @@ namespace io.harness.cfsdk.client.api
         bool BoolVariation(string key, Target target, bool defaultValue);
         string StringVariation(string key, Target target, string defaultValue);
         double NumberVariation(string key, Target target, double defaultValue);
-        JToken JsonVariationToken(string key, Target target, JToken defaultValue); 
+        JToken JsonVariationToken(string key, Target target, JToken defaultValue);
         JObject JsonVariation(string key, Target target, JObject defaultValue);
 
     }
@@ -71,7 +71,7 @@ namespace io.harness.cfsdk.client.api
                 LogEvaluationFailureError(FeatureConfigKind.Json, key, target, defaultValue);
                 return defaultValue;
             }
-            
+
             try
             {
                 return JToken.Parse(variation.Value);
@@ -85,7 +85,7 @@ namespace io.harness.cfsdk.client.api
             }
 
         }
-        
+
         public JObject JsonVariation(string key, Target target, JObject defaultValue)
         {
             var variation = EvaluateVariation(key, target, FeatureConfigKind.Json);
@@ -95,9 +95,9 @@ namespace io.harness.cfsdk.client.api
                 {
                     var token = JToken.Parse(variation.Value);
                     if (token.Type == JTokenType.Object) return (JObject)token;
-                    
+
                     if (!logger.IsEnabled(LogLevel.Warning)) return defaultValue;
-                    
+
                     logger.LogWarning("JSON variation is not an object. Returning default value. Use JsonVariationToken(string key, Target target, JToken defaultValue) which is available since version 1.7.0");
                     LogEvaluationFailureError(FeatureConfigKind.Json, key, target, defaultValue);
                     return defaultValue;
@@ -145,7 +145,7 @@ namespace io.harness.cfsdk.client.api
 
                 if (poller != null)
                 {
-                    var refreshResult = poller.RefreshFlags(TimeSpan.FromSeconds(config.CacheRecoveryTimeoutInMs));
+                    var refreshResult = poller.RefreshFlags(TimeSpan.FromMilliseconds(config.CacheRecoveryTimeoutInMs));
 
                     if (refreshResult != RefreshOutcome.Success)
                         return null;
@@ -342,7 +342,7 @@ namespace io.harness.cfsdk.client.api
                         logger.LogDebug(
                             "Percentage rollout applies to group rule, evaluating distribution: Target({@Target}) Flag({@Flag})",
                             new { Target = target}, new { Flag = featureConfig});
-                            
+
 
                     var distributionProcessor = new DistributionProcessor(servingRule.Serve, loggerFactory);
                     return distributionProcessor.loadKeyName(target);
@@ -354,7 +354,7 @@ namespace io.harness.cfsdk.client.api
                     if (logger.IsEnabled(LogLevel.Warning))
                         logger.LogWarning("Serve.Variation is null for a rule in Flag({@FeatureConfig})",
                              new { Flag = featureConfig});
-                        
+
                     return null;
                 }
 
@@ -367,7 +367,7 @@ namespace io.harness.cfsdk.client.api
                     new { Target = target}, new { Flag = featureConfig});
             return null;
         }
-        
+
         private bool IsTargetIncludedOrExcludedInSegment(ICollection<string> segmentList, Target target)
         {
             foreach (var segmentIdentifier in segmentList)
