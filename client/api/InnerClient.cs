@@ -343,7 +343,7 @@ namespace io.harness.cfsdk.client.api
         public async Task<string> StringVariationAsync(string key, Target target, string defaultValue, CancellationToken cancellationToken)
         {
             return await RetrieveValue(
-                async () => await evaluator.StringVariationAsync(key, target, defaultValue),
+                async () => await evaluator.StringVariationAsync(key, target, defaultValue, cancellationToken),
                 FeatureConfigKind.String,
                 key,
                 target,
@@ -360,7 +360,7 @@ namespace io.harness.cfsdk.client.api
         public async Task<double> NumberVariationAsync(string key, Target target, double defaultValue, CancellationToken cancellationToken)
         {
             return await RetrieveValue(
-                async () => await evaluator.NumberVariationAsync(key, target, defaultValue),
+                async () => await evaluator.NumberVariationAsync(key, target, defaultValue, cancellationToken),
                 FeatureConfigKind.Int,
                 key,
                 target,
@@ -377,7 +377,7 @@ namespace io.harness.cfsdk.client.api
         public async Task<JToken> JsonVariationTokenAsync(string key, Target target, JToken defaultValue, CancellationToken cancellationToken)
         {
             return await RetrieveValue(
-                async () => await evaluator.JsonVariationTokenAsync(key, target, defaultValue),
+                async () => await evaluator.JsonVariationTokenAsync(key, target, defaultValue, cancellationToken),
                 FeatureConfigKind.Json,
                 key,
                 target,
@@ -394,7 +394,7 @@ namespace io.harness.cfsdk.client.api
         public async Task<JObject> JsonVariationAsync(string key, Target target, JObject defaultValue, CancellationToken cancellationToken)
         {
             return await RetrieveValue(
-                async () => await evaluator.JsonVariationAsync(key, target, defaultValue),
+                async () => await evaluator.JsonVariationAsync(key, target, defaultValue, cancellationToken),
                 FeatureConfigKind.Json,
                 key,
                 target,

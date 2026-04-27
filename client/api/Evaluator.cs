@@ -123,7 +123,7 @@ namespace io.harness.cfsdk.client.api
             JObject defaultValue,
             CancellationToken cancellationToken = default)
         {
-            var variation = await EvaluateVariationAsync(key, target, FeatureConfigKind.Json);
+            var variation = await EvaluateVariationAsync(key, target, FeatureConfigKind.Json, cancellationToken);
             if (variation != null)
             {
                 try
@@ -161,7 +161,7 @@ namespace io.harness.cfsdk.client.api
             double defaultValue,
             CancellationToken cancellationToken = default)
         {
-            var variation = await EvaluateVariationAsync(key, target, FeatureConfigKind.Int);
+            var variation = await EvaluateVariationAsync(key, target, FeatureConfigKind.Int, cancellationToken);
             double res;
             if (variation != null && double.TryParse(variation.Value, out res)) return res;
 
@@ -181,7 +181,7 @@ namespace io.harness.cfsdk.client.api
             string defaultValue,
             CancellationToken cancellationToken = default)
         {
-            var variation = await EvaluateVariationAsync(key, target, FeatureConfigKind.String);
+            var variation = await EvaluateVariationAsync(key, target, FeatureConfigKind.String, cancellationToken);
             if (variation != null) return variation.Value;
 
             LogEvaluationFailureError(FeatureConfigKind.String, key, target, defaultValue);
