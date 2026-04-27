@@ -102,7 +102,7 @@ namespace io.harness.cfsdk.client.api
             isDisposed = true;
         }
 
-        private static Task RunWithTimeout(Task task, TimeSpan timeout, CancellationToken cancellationToken = default)
+        private static async Task RunWithTimeout(Task task, TimeSpan timeout, CancellationToken cancellationToken = default)
         {
             var tasks = new List<Task>();
             if (task != null)
@@ -110,14 +110,15 @@ namespace io.harness.cfsdk.client.api
                 tasks.Add(task);
             }
 
-            return RunWithTimeout(tasks, timeout, cancellationToken);
+            await RunWithTimeout(tasks, timeout, cancellationToken);
         }
 
-        private static Task RunWithTimeout(IEnumerable<Task> tasks, TimeSpan timeout, CancellationToken cancellationToken = default)
+        private static async Task RunWithTimeout(IEnumerable<Task> tasks, TimeSpan timeout, CancellationToken cancellationToken = default)
         {
             var timeoutTask = Task.Delay(timeout, cancellationToken);
             var allTasks = Task.WhenAll(tasks);
-            return Task.WhenAny(allTasks, timeoutTask)
+            
+            await Task.WhenAny(allTasks, timeoutTask)
                 .ContinueWith(t =>
                 {
                     if (t.Result == timeoutTask)
