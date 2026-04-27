@@ -115,18 +115,18 @@ namespace io.harness.cfsdk.client.api
 
         private static async Task RunWithTimeout(IEnumerable<Task> tasks, TimeSpan timeout, CancellationToken cancellationToken = default)
         {
-            var timeoutTask = Task.Delay(timeout, cancellationToken);
             var allTasks = Task.WhenAll(tasks);
-            
-            await Task.WhenAny(allTasks, timeoutTask)
-                .ContinueWith(t =>
-                {
-                    if (t.Result == timeoutTask)
-                    {
-                        throw new TimeoutException();
-                    }
-                    return allTasks;
-                }, cancellationToken).Unwrap();
+
+#if NET6_0_OR_GREATER
+            await allTasks.WaitAsync(timeout, cancellationToken);
+#else
+            var timeoutTask = Task.Delay(timeout, cancellationToken);
+            var completedTask = await Task.WhenAny(allTasks, timeoutTask);
+            if (completedTask == timeoutTask)
+            {
+                throw new TimeoutException();
+            }
+#endif
         }
 
         public void Start()
