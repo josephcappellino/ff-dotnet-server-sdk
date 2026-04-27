@@ -28,7 +28,7 @@ namespace io.harness.cfsdk.client.api
         void OnPollCompleted();
     }
 
-    internal interface IPollingProcessor
+    internal interface IPollingProcessor: IDisposable
     {
         /// <summary>
         /// Stop pooling
@@ -67,6 +67,7 @@ namespace io.harness.cfsdk.client.api
         private DateTime lastFlagsRefreshTime = DateTime.MinValue;
         private DateTime lastSegmentsRefreshTime = DateTime.MinValue;
         private const int MaxCacheRefreshTime = 60;
+        private bool isDisposed = false;
 
         private readonly TimeSpan refreshCooldown = TimeSpan.FromSeconds(MaxCacheRefreshTime);
 
@@ -77,6 +78,28 @@ namespace io.harness.cfsdk.client.api
             this.connector = connector;
             this.config = config;
             this.logger = loggerFactory.CreateLogger<PollingProcessor>();
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (isDisposed)
+            {
+                return;
+            }
+
+            if (disposing)
+            {
+                Stop();
+                cacheRefreshLock.Dispose();
+            }
+                
+            isDisposed = true;
         }
 
         private static Task RunWithTimeout(Task task, TimeSpan timeout, CancellationToken cancellationToken = default)

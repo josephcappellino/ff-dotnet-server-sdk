@@ -21,7 +21,7 @@ namespace io.harness.cfsdk.client.api
         void EvaluationProcessed(FeatureConfig featureConfig, Target target, Variation variation);
     }
 
-    internal interface IEvaluator
+    internal interface IEvaluator: IDisposable
     {
         bool BoolVariation(string key, Target target, bool defaultValue);
         Task<bool> BoolVariationAsync(string key, Target target, bool defaultValue, CancellationToken cancellationToken = default);
@@ -44,6 +44,7 @@ namespace io.harness.cfsdk.client.api
         private readonly IRepository repository;
         private readonly IPollingProcessor poller;
         private readonly Config config;
+        private bool isDisposed = false;
 
 
         public Evaluator(IRepository repository, IEvaluatorCallback callback, ILoggerFactory loggerFactory,
@@ -56,6 +57,27 @@ namespace io.harness.cfsdk.client.api
             IsAnalyticsEnabled = isAnalyticsEnabled;
             this.poller = poller;
             this.config = config;
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (isDisposed)
+            {
+                return;
+            }
+
+            if (disposing)
+            {
+                poller?.Dispose();
+            }
+
+            isDisposed = true;
         }
 
         public bool BoolVariation(string key, Target target, bool defaultValue)

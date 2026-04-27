@@ -428,7 +428,8 @@ namespace io.harness.cfsdk.client.api
             this.connector?.Close();
             this.authService?.Stop();
             this.repository?.Close();
-            this.polling?.Stop();
+            this.evaluator?.Dispose();
+            this.polling?.Dispose();
             this.update?.Stop();
             this.metric?.Stop();
             this.SdkInitialized = false;
