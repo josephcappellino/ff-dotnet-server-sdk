@@ -120,7 +120,7 @@ namespace io.harness.cfsdk.client.api
             try
             {
                 ProcessFlagsAndSegments(TimeSpan.FromSeconds(config.CacheRecoveryTimeoutInMs))
-                    .GetAwaiter().GetResult();
+                    .ConfigureAwait(false).GetAwaiter().GetResult();
             }
             catch (TimeoutException ex)
             {
@@ -206,7 +206,7 @@ namespace io.harness.cfsdk.client.api
         public RefreshOutcome RefreshFlagsAndSegments(TimeSpan timeout)
         {
             return RefreshFlagsAndSegmentsAsync(timeout, CancellationToken.None)
-                .GetAwaiter().GetResult();
+                .ConfigureAwait(false).GetAwaiter().GetResult();
         }
 
         public async Task<RefreshOutcome> RefreshFlagsAndSegmentsAsync(TimeSpan timeout, CancellationToken cancellationToken = default)
@@ -245,7 +245,7 @@ namespace io.harness.cfsdk.client.api
         public RefreshOutcome RefreshSegments(TimeSpan timeout)
         {
             return RefreshSegmentsAsync(timeout, CancellationToken.None)
-                .GetAwaiter().GetResult();
+                .ConfigureAwait(false).GetAwaiter().GetResult();
         }
 
         public async Task<RefreshOutcome> RefreshSegmentsAsync(TimeSpan timeout, CancellationToken cancellationToken = default)
@@ -283,7 +283,7 @@ namespace io.harness.cfsdk.client.api
         public RefreshOutcome RefreshFlags(TimeSpan timeout)
         {
             return RefreshFlagsAsync(timeout, CancellationToken.None)
-                .GetAwaiter().GetResult();
+                .ConfigureAwait(false).GetAwaiter().GetResult();
         }
 
         public async Task<RefreshOutcome> RefreshFlagsAsync(TimeSpan timeout, CancellationToken cancellationToken = default)

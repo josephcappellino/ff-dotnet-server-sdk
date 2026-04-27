@@ -61,7 +61,7 @@ namespace io.harness.cfsdk.client.api
         public bool BoolVariation(string key, Target target, bool defaultValue)
         {
             return BoolVariationAsync(key, target, defaultValue, CancellationToken.None)
-                .GetAwaiter().GetResult();
+                .ConfigureAwait(false).GetAwaiter().GetResult();
         }
 
         public async Task<bool> BoolVariationAsync(
@@ -81,7 +81,7 @@ namespace io.harness.cfsdk.client.api
         public JToken JsonVariationToken(string key, Target target, JToken defaultValue)
         {
             return JsonVariationTokenAsync(key, target, defaultValue, CancellationToken.None)
-                .GetAwaiter().GetResult();
+                .ConfigureAwait(false).GetAwaiter().GetResult();
         }
 
         public async Task<JToken> JsonVariationTokenAsync(
@@ -114,7 +114,7 @@ namespace io.harness.cfsdk.client.api
         public JObject JsonVariation(string key, Target target, JObject defaultValue)
         {
             return JsonVariationAsync(key, target, defaultValue, CancellationToken.None)
-                .GetAwaiter().GetResult();
+                .ConfigureAwait(false).GetAwaiter().GetResult();
         }
 
         public async Task<JObject> JsonVariationAsync(
@@ -152,7 +152,7 @@ namespace io.harness.cfsdk.client.api
         public double NumberVariation(string key, Target target, double defaultValue)
         {
             return NumberVariationAsync(key, target, defaultValue, CancellationToken.None)
-                .GetAwaiter().GetResult();
+                .ConfigureAwait(false).GetAwaiter().GetResult();
         }
 
         public async Task<double> NumberVariationAsync(
@@ -172,7 +172,7 @@ namespace io.harness.cfsdk.client.api
         public string StringVariation(string key, Target target, string defaultValue)
         {
             return StringVariationAsync(key, target, defaultValue, CancellationToken.None)
-                .GetAwaiter().GetResult();
+                .ConfigureAwait(false).GetAwaiter().GetResult();
         }
 
         public async Task<string> StringVariationAsync(
