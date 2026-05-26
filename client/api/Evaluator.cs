@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 using io.harness.cfsdk.client.api.rules;
 using io.harness.cfsdk.HarnessOpenAPIService;
@@ -11,8 +10,6 @@ using Target = io.harness.cfsdk.client.dto.Target;
 using Newtonsoft.Json;
 using System.Threading.Tasks;
 using System.Threading;
-
-[assembly: InternalsVisibleToAttribute("ff-server-sdk-test")]
 
 namespace io.harness.cfsdk.client.api
 {
