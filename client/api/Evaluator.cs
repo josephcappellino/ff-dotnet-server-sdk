@@ -127,7 +127,7 @@ namespace io.harness.cfsdk.client.api
             {
                 if (!logger.IsEnabled(LogLevel.Warning)) return defaultValue;
 
-                LogEvaluationFailureError(FeatureConfigKind.Json, key, target, defaultValue);
+                LogEvaluationFailureError(FeatureConfigKind.Json, key, target, defaultValue, ex);
                 return defaultValue;
             }
 
@@ -162,7 +162,7 @@ namespace io.harness.cfsdk.client.api
                 catch (JsonReaderException ex)
                 {
                     // Log the error if parsing fails
-                    LogEvaluationFailureError(FeatureConfigKind.Json, key, target, ex.Message);
+                    LogEvaluationFailureError(FeatureConfigKind.Json, key, target, ex.Message, ex);
                     return defaultValue;
                 }
             }
@@ -270,11 +270,12 @@ namespace io.harness.cfsdk.client.api
             return var;
         }
 
-        private void LogEvaluationFailureError<T>(FeatureConfigKind kind, string featureKey, Target target, T defaultValue)
+        private void LogEvaluationFailureError<T>(FeatureConfigKind kind, string featureKey, Target target, T defaultValue, Exception ex = null)
         {
             if (logger.IsEnabled(LogLevel.Warning))
             {
                 logger.LogWarning(
+                    ex,
                     "SDKCODE(eval:6001): Failed to evaluate {Kind} variation for {TargetId}, flag {FeatureId} and the default variation {DefaultValue} is being returned",
                     kind, target?.Identifier ?? "null target", featureKey, defaultValue?.ToString() ?? "null");
             }

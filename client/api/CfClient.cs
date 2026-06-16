@@ -42,7 +42,9 @@ namespace io.harness.cfsdk.client.api
     public class CfClient : ICfClient
     {
         // Singleton implementation
+#pragma warning disable CS0618 // Suppress warnings for using obsolete constructor
         private static readonly Lazy<CfClient> lazy = new Lazy<CfClient>(() => new CfClient());
+#pragma warning restore CS0618 // Restore warnings
         private bool isDisposed = false;
 
         /// <summary>
