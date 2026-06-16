@@ -72,10 +72,18 @@ namespace io.harness.cfsdk.client.connector
             }
         }
 
+        private async Task<HttpResponseMessage> GetStreamResponse()
+        {
+            var response = await httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationTokenSource.Token);
+            response.EnsureSuccessStatusCode();
+            return response;
+        }
+
         private async Task StartStreaming()
         {
             var retryCount = 0;
-            while (!cancellationTokenSource.Token.IsCancellationRequested)
+            var token = cancellationTokenSource.Token;
+            while (!token.IsCancellationRequested)
             {
                 try
                 {
@@ -83,36 +91,15 @@ namespace io.harness.cfsdk.client.connector
 
                     logger.LogDebug("Starting EventSource service");
                     
-                    // In .NET 4.8, we can't use a traditional HTTP Client timeout, or cacncellation token, 
-                    // as the HTTP client interprets reading from the stream as the connection is still open. 
-                    // We use this workaround instead to simulate a timeout for the initial request.
-                    var initialTask = Task.Run(async () =>
-                    {
-                        await Task.Delay(InitialConnectionTimeoutMs, cancellationTokenSource.Token);
-                        throw new TimeoutException("Initial connection timeout");
-                    });
-
-                    var requestTask = Task.Run(async () =>
-                    {
-                        var response = await httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationTokenSource.Token);
-                        response.EnsureSuccessStatusCode();
-                        return response;
-                    });
-
-                    var completedTask = await Task.WhenAny(initialTask, requestTask);
-
-                    if (completedTask == initialTask)
-                    {
-                        await initialTask; 
-                    }
-                    
-                    using (Stream stream = await this.httpClient.GetStreamAsync(url))
+                    var timeout = TimeSpan.FromMilliseconds(InitialConnectionTimeoutMs);
+                    using (var response = await GetStreamResponse().RunWithTimeout(timeout, token))
+                    using (var stream = await this.httpClient.GetStreamAsync(url))
                     {
                         retryCount = 0;
                         callback.OnStreamConnected();
 
                         string message;
-                        while ((message = ReadLine(stream, ReadTimeoutMs)) != null && !cancellationTokenSource.Token.IsCancellationRequested)
+                        while ((message = ReadLine(stream, ReadTimeoutMs)) != null && !token.IsCancellationRequested)
                         {
                             if (!message.Contains("domain"))
                             {
@@ -140,7 +127,7 @@ namespace io.harness.cfsdk.client.connector
                 }
                 catch (Exception e)
                 {
-                    if (cancellationTokenSource.Token.IsCancellationRequested)
+                    if (token.IsCancellationRequested)
                     {
                         logger.LogInformation("SDKCODE(stream:5004): SSE thread exited");
                         return;
@@ -159,7 +146,7 @@ namespace io.harness.cfsdk.client.connector
                 }
                 finally
                 {
-                    if (!cancellationTokenSource.Token.IsCancellationRequested)
+                    if (!token.IsCancellationRequested)
                     {
                         callback.OnStreamDisconnected();
                     }

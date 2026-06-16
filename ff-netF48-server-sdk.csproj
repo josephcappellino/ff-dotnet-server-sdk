@@ -8,10 +8,10 @@
         <PackageId>ff-dotnet-server-sdk-async</PackageId>
         <RootNamespace>io.harness.cfsdk</RootNamespace>
         <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
-        <Version>1.7.6</Version>
+        <Version>1.8.0</Version>
         <PackOnBuild>true</PackOnBuild>
-        <PackageVersion>1.7.6</PackageVersion>
-        <AssemblyVersion>1.7.6</AssemblyVersion>
+        <PackageVersion>$(Version)</PackageVersion>
+        <AssemblyVersion>$(Version)</AssemblyVersion>
         <Authors>support@harness.io</Authors>
         <Copyright>Copyright © 2026</Copyright>
         <PackageLicenseFile>LICENSE</PackageLicenseFile>
@@ -26,9 +26,17 @@
         <PackageReleaseNotes>.NET Server SDK for Harness Feature Flag platform</PackageReleaseNotes>
         <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
         <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+        <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    </PropertyGroup>
+
+    <PropertyGroup Condition="'$(TargetFramework)' == 'net5.0'">
+        <SuppressTfmSupportBuildWarnings>true</SuppressTfmSupportBuildWarnings>
     </PropertyGroup>
 
     <ItemGroup>
+        <None Include="LICENSE" Pack="true" PackagePath="\" />
+        <None Include="README.md" Pack="true" PackagePath="\" />
+
         <Compile Remove="tests\**;examples\**;tools\**" />
         <EmbeddedResource Remove="tests\**;examples\**;tools\**" />
         <None Remove="tests\**;examples\**;tools\**" />
