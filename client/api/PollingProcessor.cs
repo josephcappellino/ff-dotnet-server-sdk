@@ -102,33 +102,6 @@ namespace io.harness.cfsdk.client.api
             isDisposed = true;
         }
 
-        private static async Task RunWithTimeout(Task task, TimeSpan timeout, CancellationToken cancellationToken = default)
-        {
-            var tasks = new List<Task>();
-            if (task != null)
-            {
-                tasks.Add(task);
-            }
-
-            await RunWithTimeout(tasks, timeout, cancellationToken);
-        }
-
-        private static async Task RunWithTimeout(IEnumerable<Task> tasks, TimeSpan timeout, CancellationToken cancellationToken = default)
-        {
-            var allTasks = Task.WhenAll(tasks);
-
-#if NET6_0_OR_GREATER
-            await allTasks.WaitAsync(timeout, cancellationToken);
-#else
-            var timeoutTask = Task.Delay(timeout, cancellationToken);
-            var completedTask = await Task.WhenAny(allTasks, timeoutTask);
-            if (completedTask == timeoutTask)
-            {
-                throw new TimeoutException();
-            }
-#endif
-        }
-
         public void Start()
         {
             var intervalMs = config.PollIntervalInMiliSeconds;
@@ -190,7 +163,8 @@ namespace io.harness.cfsdk.client.api
 
         private async Task ProcessFlags(TimeSpan timeout, CancellationToken cancellationToken = default)
         {
-            await RunWithTimeout(ProcessFlags(), timeout, cancellationToken);
+            await ProcessFlags()
+                .RunWithTimeout(timeout, cancellationToken);
         }
 
         private async Task ProcessSegments()
@@ -215,16 +189,20 @@ namespace io.harness.cfsdk.client.api
 
         private async Task ProcessSegments(TimeSpan timeout, CancellationToken cancellationToken = default)
         {
-            await RunWithTimeout(ProcessSegments(), timeout, cancellationToken);
+            await ProcessSegments()
+                .RunWithTimeout(timeout, cancellationToken);
         }
 
         private async Task ProcessFlagsAndSegments(TimeSpan timeout, CancellationToken cancellationToken = default)
         {
             // Await both tasks to complete within the timeout
-            await RunWithTimeout(
-                new List<Task> { ProcessFlags(), ProcessSegments() },
-                timeout,
-                cancellationToken);
+            var tasks = new List<Task>
+            {
+                ProcessFlags(),
+                ProcessSegments()
+            };
+            await tasks
+                .RunWithTimeout(timeout, cancellationToken);
         }
 
         public RefreshOutcome RefreshFlagsAndSegments(TimeSpan timeout)
