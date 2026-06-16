@@ -14,7 +14,6 @@
         <AssemblyVersion>$(Version)</AssemblyVersion>
         <Authors>support@harness.io</Authors>
         <Copyright>Copyright © 2026</Copyright>
-        <PackageLicenseFile>LICENSE</PackageLicenseFile>
         <PackageReadmeFile>README.md</PackageReadmeFile>
         <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
         <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
@@ -34,7 +33,6 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <None Include="LICENSE" Pack="true" PackagePath="\" />
         <None Include="README.md" Pack="true" PackagePath="\" />
 
         <Compile Remove="tests\**;examples\**;tools\**" />
